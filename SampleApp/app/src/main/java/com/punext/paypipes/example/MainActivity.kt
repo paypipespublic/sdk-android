@@ -769,13 +769,13 @@ private object Credentials {
     const val defaultAmount = "10.00"
     
     val sampleAddress = Address(
-        street = "123 Main Street",
-        city = "New York",
-        state = "NY",
-        postCode = "10001",
+        street = "123 Fake Street",
+        city = "Test City",
+        state = "TS",
+        postCode = "00000",
         country = "US"
     )
-    val samplePhone = Phone(number = "730147874", countryCode = "+420")
+    val samplePhone = Phone(number = "5550100", countryCode = "+1")
 }
 
 private object ThemeConstants {

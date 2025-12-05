@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">PayPipes Example</string>
+    
+    <!-- Main Screen -->
+    <string name="app_title">PayPipes SDK Example</string>
+    <string name="app_description">This example demonstrates how to integrate the PayPipes SDK for Android with theming.</string>
+    
+    <!-- Amount Section -->
+    <string name="amount_title">Amount</string>
+    <string name="amount_hint">Amount</string>
+    
+    <!-- Customer Section -->
+    <string name="customer_title">Customer</string>
+    <string name="first_name_hint">First Name</string>
+    <string name="last_name_hint">Last Name</string>
+    <string name="email_hint">Email</string>
+    
+    <!-- Billing Address -->
+    <string name="billing_address_required">Billing address required</string>
+    <string name="billing_address_required_description">Billing address required during purchase</string>
+    <string name="billing_address_provided">Billing address provided</string>
+    <string name="billing_address_provided_description">Billing address provided by the merchant</string>
+    
+    <!-- Theme -->
+    <string name="custom_theme_title">Custom Theme</string>
+    <string name="custom_theme_description">Apply a blue custom theme to the SDK UI</string>
+    <string name="custom_theme_applied">Custom theme applied! Try the payment flow now.</string>
+    <string name="theme_reset">Theme reset to default!</string>
+    
+    <!-- Payment Flows -->
+    <string name="payment_flows_title">Payment Flows</string>
+    <string name="test_card_payment">Test Card Payment</string>
+    <string name="test_card_storage">Test Card Storage</string>
+    
+    <!-- Features -->
+    <string name="features_title">Features demonstrated:</string>
+    <string name="features_list">• Card payment processing\n• Card storage for future payments\n• Optional billing address collection\n• Result callbacks\n• Custom theming system</string>
+    
+    <!-- Messages -->
+    <string name="sdk_version">SDK Version: %1$s</string>
+    <string name="payment_successful">Payment successful! Transaction ID: %1$s</string>
+    <string name="payment_declined">Payment was declined (Code: %1$s)</string>
+    <string name="payment_cancelled">Payment was cancelled</string>
+    <string name="payment_unknown_state">Transaction state is unknown</string>
+    <string name="payment_server_error">Server error: %1$s</string>
+    <string name="payment_compromised_device">Compromised device</string>
+    <string name="payment_no_scheme">No scheme for currency</string>
+    <string name="payment_invalid_input">Invalid input</string>
+    <string name="payment_failed">Payment failed: %1$s</string>
+    <string name="no_result_received">No result received</string>
+    <string name="transaction_cancelled">Transaction was cancelled</string>
+    <string name="failed_to_start_payment">Failed to start payment: %1$s</string>
+    <string name="failed_to_start_storage">Failed to start card storage: %1$s</string>
+    
+    <!-- Accessibility -->
+    <string name="accessibility_payment_button">Test card payment button</string>
+    <string name="accessibility_storage_button">Test card storage button</string>
+    <string name="accessibility_amount_field">Payment amount input field</string>
+    <string name="accessibility_currency_dropdown">Currency selection dropdown</string>
+</resources> 

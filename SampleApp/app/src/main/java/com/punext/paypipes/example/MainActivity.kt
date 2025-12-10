@@ -775,7 +775,7 @@ private object Credentials {
         postCode = "00000",
         country = "US"
     )
-    val samplePhone = Phone(number = "5550100", countryCode = "+1")
+    val samplePhone = Phone(number = "777777777", countryCode = "+420")
 }
 
 private object ThemeConstants {

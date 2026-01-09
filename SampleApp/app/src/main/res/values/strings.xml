@@ -21,6 +21,8 @@
     <string name="billing_address_required_description">Billing address required during purchase</string>
     <string name="billing_address_provided">Billing address provided</string>
     <string name="billing_address_provided_description">Billing address provided by the merchant</string>
+    <string name="business_customer">Business customer</string>
+    <string name="business_customer_description">Set legal entity to business</string>
     
     <!-- Theme -->
     <string name="custom_theme_title">Custom Theme</string>

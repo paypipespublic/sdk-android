@@ -30,6 +30,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.punext.paypipes.PayPipesUI
 import com.punext.paypipes.model.*
+import com.punext.paypipes.model.LegalEntity
 import com.punext.paypipes.theme.Theme
 import com.punext.paypipes.theme.ThemeColors
 import com.punext.paypipes.theme.ThemeFonts
@@ -289,7 +290,8 @@ class MainActivity : ComponentActivity() {
             lastName = viewModel.lastName.value,
             email = viewModel.email.value,
             address = if (viewModel.billingAddressProvided.value) Credentials.sampleAddress else null,
-            phone = Credentials.samplePhone
+            phone = Credentials.samplePhone,
+            legalEntity = if (viewModel.isBusinessCustomer.value) LegalEntity.BUSINESS else LegalEntity.PRIVATE
         )
     }
 }
@@ -308,6 +310,7 @@ fun ExampleAppContent(
     val amount by viewModel.amount.collectAsState()
     val billingAddressRequired by viewModel.billingAddressRequired.collectAsState()
     val billingAddressProvided by viewModel.billingAddressProvided.collectAsState()
+    val isBusinessCustomer by viewModel.isBusinessCustomer.collectAsState()
     val isCustomThemeEnabled by viewModel.isCustomThemeEnabled.collectAsState()
     val firstName by viewModel.firstName.collectAsState()
     val lastName by viewModel.lastName.collectAsState()
@@ -370,6 +373,8 @@ fun ExampleAppContent(
             onBillingAddressRequiredChange = { viewModel.updateBillingAddressRequired(it) },
             billingAddressProvided = billingAddressProvided,
             onBillingAddressProvidedChange = { viewModel.updateBillingAddressProvided(it) },
+            isBusinessCustomer = isBusinessCustomer,
+            onBusinessCustomerChange = { viewModel.updateBusinessCustomer(it) },
             firstName = firstName,
             onFirstNameChange = { viewModel.updateFirstName(it) },
             lastName = lastName,
@@ -621,6 +626,8 @@ fun BillingInfoInputs(
     onBillingAddressRequiredChange: (Boolean) -> Unit,
     billingAddressProvided: Boolean,
     onBillingAddressProvidedChange: (Boolean) -> Unit,
+    isBusinessCustomer: Boolean,
+    onBusinessCustomerChange: (Boolean) -> Unit,
     firstName: String,
     onFirstNameChange: (String) -> Unit,
     lastName: String,
@@ -747,6 +754,41 @@ fun BillingInfoInputs(
                 Switch(
                     checked = billingAddressProvided,
                     onCheckedChange = onBillingAddressProvidedChange,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = Color(0xFF4CAF50),
+                        uncheckedThumbColor = Color.White,
+                        uncheckedTrackColor = Color(0xFFBDBDBD)
+                    )
+                )
+            }
+
+            Divider(color = Color(0xFFEEEEEE))
+
+            // Business customer switch
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                    Text(
+                        text = context.getString(R.string.business_customer),
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Medium,
+                            color = ThemeConstants.colorDarkGray
+                        )
+                    )
+                    Text(
+                        text = context.getString(R.string.business_customer_description),
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            color = Color(0xFF757575)
+                        )
+                    )
+                }
+                Switch(
+                    checked = isBusinessCustomer,
+                    onCheckedChange = onBusinessCustomerChange,
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = Color.White,
                         checkedTrackColor = Color(0xFF4CAF50),

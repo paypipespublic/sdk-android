@@ -24,6 +24,9 @@ class ExampleViewModel : ViewModel() {
     private val _billingAddressProvided = MutableStateFlow(false)
     val billingAddressProvided: StateFlow<Boolean> = _billingAddressProvided.asStateFlow()
     
+    private val _isBusinessCustomer = MutableStateFlow(false)
+    val isBusinessCustomer: StateFlow<Boolean> = _isBusinessCustomer.asStateFlow()
+    
     private val _isCustomThemeEnabled = MutableStateFlow(false)
     val isCustomThemeEnabled: StateFlow<Boolean> = _isCustomThemeEnabled.asStateFlow()
     
@@ -50,6 +53,10 @@ class ExampleViewModel : ViewModel() {
     
     fun updateBillingAddressProvided(provided: Boolean) {
         _billingAddressProvided.value = provided
+    }
+    
+    fun updateBusinessCustomer(isBusiness: Boolean) {
+        _isBusinessCustomer.value = isBusiness
     }
     
     fun updateCustomThemeEnabled(enabled: Boolean) {

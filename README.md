@@ -1,343 +1,237 @@
-# PayPipes Android SDK
+# Android SDK - Internal Developer Guide
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/paypipespublic/punext-pms-sdk-android)
-[![Platform](https://img.shields.io/badge/platform-Android%2010%2B-lightgrey.svg)](https://developer.android.com)
-[![Kotlin](https://img.shields.io/badge/kotlin-1.9+-purple.svg)](https://kotlinlang.org)
-![License](https://img.shields.io/badge/license-Proprietary-red.svg)
+This document provides an internal overview of the Android SDK, covering its architecture, key components, development practices, and project structure. It is intended for developers working on the SDK itself.
 
-PayPipes SDK provides a seamless and secure payment processing solution for Android applications. Built with Jetpack Compose, this SDK handles card payment transactions, card storage, and 3D Secure authentication flows.
+## Core Objectives & Design Philosophy
 
-## Features
+*   **Seamless Integration**: Provide a drop-in UI solution that handles the complexity of payment processing.
+*   **Modern Android Development**: Built entirely with **Jetpack Compose** and **Kotlin Coroutines** for a modern, reactive codebase.
+*   **Security First**: Implements strict security measures including device integrity checks (root detection), secure string handling, and preventing screen capture in sensitive flows.
+*   **Themability**: A robust theming system allowing the SDK to adapt to the host application's design system.
 
-- 💳 **Card Payment Processing**: Complete payment flow with card validation
-- 🔒 **Security First**: Device integrity checks, secure data handling, screen protection
-- 🎨 **Customizable Theming**: Match your app's design system
-- 📱 **Modern UI**: Built entirely with Jetpack Compose
-- 🌍 **Localization**: Multi-language support
-- ✅ **3D Secure**: Full support for 3DS authentication flows
+## Architecture Overview
 
-## Requirements
+The SDK follows a Clean Architecture approach with MVVM (Model-View-ViewModel) presentation pattern.
 
-- Android 10 (API level 29)+
-- Kotlin 1.9+
-- Gradle 8.0+
-- Android Gradle Plugin 8.0+
+*   **UI Layer (`ui/`)**:
+    *   Built 100% with **Jetpack Compose**.
+    *   **Activity**: `CardTransactionActivity` is the single entry point for the UI flow. It handles the window configuration and hosts the Compose content.
+    *   **Screens**: `CardTransactionScreen` is the main composable defining the layout.
+    *   **ViewModel**: `CardTransactionViewModel` manages the state (`CardTransactionUiState`), handles business logic, input validation, and communicates with the data layer.
+    *   **State**: UI state is modeled as sealed classes/interfaces for reactivity.
 
-## Installation
+*   **Domain/Model Layer (`model/`)**:
+    *   Contains pure data classes (`CardTransaction`, `Configuration`, `Money`, `CustomerDetails`).
+    *   Defines core business rules and validation logic.
 
-### Maven Repository
+### Localization
 
-Add the Maven repository to your project's `build.gradle.kts` (or `build.gradle`):
-
-```kotlin
-repositories {
-    maven {
-        url = uri("https://github.com/paypipespublic/sdk-android/repository")
-    }
-    google()
-    mavenCentral()
-}
-```
-
-### Gradle Dependency
-
-Add the PayPipes SDK dependency to your app's `build.gradle.kts`:
+The SDK supports multiple languages with an optional explicit language override:
 
 ```kotlin
-dependencies {
-    implementation("com.punext:paypipes:1.0.0")
-}
-```
-
-### Manual Integration
-
-1. Download the AAR file from the [Releases](https://github.com/paypipespublic/punext-pms-sdk-android/releases) page
-2. Place the AAR file in your `libs` directory
-3. Add to your `build.gradle.kts`:
-
-```kotlin
-dependencies {
-    implementation(files("libs/paypipes-1.0.0.aar"))
-}
-```
-
-## Quick Start
-
-### 1. Configure the SDK
-
-```kotlin
-import com.punext.paypipes.PayPipesUI
-import com.punext.paypipes.model.Configuration
-import com.punext.paypipes.model.Environment
-
 val configuration = Configuration(
-    clientId = "your-client-id",
-    clientSecret = "your-client-secret",
-    environment = Environment.PRODUCTION // or Environment.SANDBOX
+    // ... other params ...
+    language = SDKLanguage.CZECH  // Force Czech language
 )
 ```
 
-### 2. Create a Transaction Intent
+#### Supported Languages
+
+| Language | Enum Value | ISO 639-1 |
+|----------|------------|-----------|
+| English | `SDKLanguage.ENGLISH` | `en` |
+| Czech | `SDKLanguage.CZECH` | `cs` |
+
+#### Language Resolution
+
+1. If `language` is explicitly set in `Configuration`, use that language
+2. Otherwise, check if the system language is supported
+3. Fall back to English if system language is not supported
+
+The resolved language is:
+*   Used for all SDK UI strings via locale-wrapped Context
+*   Sent to the backend via the `language` parameter in API requests
+
+### Transaction Configuration
+
+`CardTransaction` supports the following parameters:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `orderId` | `String` | Yes | Unique identifier for the order |
+| `customerDetails` | `CustomerDetails` | Yes | Customer details including billing information |
+| `amount` | `Money` | Yes | Transaction amount and currency |
+| `flowType` | `FlowType` | No | Transaction flow type (default: `CARD_PAYMENT`) |
+| `billingAddressRequired` | `Boolean` | No | Whether billing address is required (default: `false`) |
+| `callbackUrl` | `String?` | No | URL for receiving transaction status callbacks |
+
+#### Customer Details
+
+`CustomerDetails` contains the customer information for the transaction:
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `firstName` | `String` | Yes | Customer's first name |
+| `lastName` | `String` | Yes | Customer's last name |
+| `email` | `String` | Yes | Customer's email address |
+| `address` | `Address?` | No | Customer's billing address |
+| `phone` | `Phone?` | No | Customer's phone number |
+| `legalEntity` | `LegalEntity` | No | `PRIVATE` (default) or `BUSINESS` |
+| `referenceId` | `String?` | No | Unique customer identifier (max 255 chars) |
+
+#### Callback URL
+
+The `callbackUrl` parameter allows you to specify a URL where the backend will send transaction status updates:
 
 ```kotlin
-import com.punext.paypipes.model.CardTransaction
-import com.punext.paypipes.model.Money
-import com.punext.paypipes.model.BillingInfo
-
-// BillingInfo is required - create it with mandatory fields
-val billingInfo = BillingInfo(
-    firstName = "John",
-    lastName = "Smith",
-    email = "john.smith@example.com",
-    address = null, // Optional
-    phone = null // Optional
-)
-
-val amount = Money(amount = 10.00, currency = "USD")
 val transaction = CardTransaction(
-    amount = amount,
-    orderId = UUID.randomUUID().toString(),
-    billingInfo = billingInfo,
+    orderId = "order_123",
+    customerDetails = customerDetails,
+    amount = Money(amount = BigDecimal("10.00"), currency = "USD"),
     flowType = FlowType.CARD_PAYMENT,
-    billingAddressRequired = false
-)
-
-val intent = PayPipesUI.buildCardTransactionIntent(
-    context = this,
-    configuration = configuration,
-    transaction = transaction
+    callbackUrl = "https://example.com/callback"
 )
 ```
 
-### 3. Launch the Payment Activity
+**Validation Rules:**
+- Maximum length: 2048 characters
+- Must use `http://` or `https://` scheme
+- Invalid URLs will throw an `IllegalArgumentException` at construction time
+
+*   **Data/Network Layer (`network/`)**:
+    *   **ApiManager**: The high-level facade for network operations.
+    *   **NetworkService**: Low-level HTTP client using `OkHttp`. Note: Retrofit is *not* used to minimize library footprint.
+    *   **Entities**: DTOs for JSON parsing (using `Gson`).
+
+*   **Security Layer (`security/`)**:
+    *   `DeviceIntegrity`: Checks for rooted/compromised devices.
+    *   `SecureString`: Wrapper for sensitive data (like CVV) to minimize memory footprint and exposure.
+
+## Key Systems Deep Dive
+
+### Theming System (`theme/`, `ui/theme/`)
+
+*   The SDK uses a custom `Theme` object that mirrors Material Design concepts but remains independent.
+*   `ThemeManager` is a thread-safe singleton that holds the current configuration.
+*   `PayPipesTheme` composable acts as the theme provider, bridging the SDK's `Theme` to Jetpack Compose's `MaterialTheme`.
+*   Supports Light/Dark modes and Auto switching.
+
+### Localization (`localization/`)
+
+*   `LocalizationManager`: A custom manager to handle string resources dynamically.
+*   Allows the SDK to use its own localized strings independent of the host app's configuration, while still supporting standard Android resource qualifiers.
+
+### Form Validation (`ui/cardpayment/validation/`)
+
+*   Validation logic is decoupled into separate Validator classes (`CardNumberValidator`, `CardExpiryValidator`, etc.).
+*   `FormValidationManager` orchestrates the validation of the entire form state.
+*   Validation happens in real-time as the user types, updating the `CardFormData` state in the ViewModel.
+
+### Result Handling
+
+The SDK uses a sealed class for transaction outcomes:
 
 ```kotlin
-startActivityForResult(intent, REQUEST_CODE_PAYMENT)
-```
-
-### 4. Handle the Result
-
-```kotlin
-override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-    super.onActivityResult(requestCode, resultCode, data)
-    
-    if (requestCode == REQUEST_CODE_PAYMENT) {
-        when (resultCode) {
-            Activity.RESULT_OK -> {
-                val result = PayPipesUI.getTransactionResult(data)
-                when (result) {
-                    is CardTransactionResult.Success -> {
-                        val transactionId = result.transactionId
-                        // Payment successful
-                    }
-                    is CardTransactionResult.Failure -> {
-                        val error = result.error
-                        // Handle error
-                    }
-                }
-            }
-            Activity.RESULT_CANCELED -> {
-                // User cancelled
-            }
-        }
-    }
+sealed class CardTransactionResult : Parcelable {
+    data class Success(val details: CardTransactionDetails) : CardTransactionResult()
+    data class Failure(
+        val error: CardTransactionError,
+        val transactionId: String? = null,
+        val customerToken: String? = null
+    ) : CardTransactionResult()
 }
 ```
 
-## Configuration
+#### Success Result
 
-### Custom Theme
+`CardTransactionDetails` contains:
+*   `transactionId: String` - The unique transaction identifier
+*   `customerToken: String` - The customer token for future transactions
 
-```kotlin
-import com.punext.paypipes.model.Theme
+#### Failure Result
 
-val customTheme = Theme(
-    colors = Theme.Colors(
-        primary = Color(0xFF1976D2),
-        background = Color.White,
-        // ... customize other colors
-    ),
-    fonts = Theme.Fonts(
-        title = Font(24.sp, FontWeight.Bold),
-        // ... customize other fonts
-    )
-)
+`CardTransactionResult.Failure` wraps the error with optional partial data:
+*   `error: CardTransactionError` - The specific error that occurred
+*   `transactionId: String?` - Transaction ID if one was created before failure
+*   `customerToken: String?` - Customer token if one was created before failure
 
-val configuration = Configuration(
-    clientId = "your-client-id",
-    clientSecret = "your-client-secret",
-    environment = Environment.PRODUCTION,
-    theme = customTheme
-)
+This design allows integrators to access partial transaction data even when an error occurs (e.g., when a transaction was created but later declined).
 
-// Update theme at runtime
-PayPipesUI.updateTheme(customTheme)
-```
-
-### Billing Address
-
-**BillingInfo is mandatory** for all transactions. The following fields are required:
-- `firstName: String` - Customer's first name (required, cannot be blank)
-- `lastName: String` - Customer's last name (required, cannot be blank)
-- `email: String` - Customer's email address (required, cannot be blank)
-- `address: Address?` - Optional billing address
-- `phone: Phone?` - Optional phone number
+#### Usage Example
 
 ```kotlin
-import com.punext.paypipes.model.BillingInfo
-import com.punext.paypipes.model.Address
-import com.punext.paypipes.model.Phone
+val transactionResult = CardTransactionActivity.extractResult(result.data)
 
-// Minimal required BillingInfo
-val minimalBillingInfo = BillingInfo(
-    firstName = "John",
-    lastName = "Smith",
-    email = "john.smith@example.com",
-    address = null,
-    phone = null
-)
-
-// Complete BillingInfo with address and phone
-val completeBillingInfo = BillingInfo(
-    firstName = "John",
-    lastName = "Smith",
-    email = "john.smith@example.com",
-    address = Address(
-        street = "123 Main St",
-        city = "New York",
-        state = "NY",
-        postCode = "10001",
-        country = "US"
-    ),
-    phone = Phone(number = "1234567890", countryCode = "+1")
-)
-
-val transaction = CardTransaction(
-    amount = amount,
-    orderId = UUID.randomUUID().toString(),
-    billingInfo = completeBillingInfo, // Required - cannot be null
-    flowType = FlowType.CARD_PAYMENT,
-    billingAddressRequired = true
-)
-```
-
-## Sample App
-
-See the `SampleApp` directory for a complete example application demonstrating:
-- Activity integration
-- Theme customization
-- Billing address handling
-- Error handling
-- Result processing
-
-## API Reference
-
-### PayPipesUI
-
-The main entry point for the SDK.
-
-#### Methods
-
-- `buildCardTransactionIntent(context, configuration, transaction)` - Creates an Intent to launch the payment activity
-- `getTransactionResult(intent)` - Extracts the transaction result from the activity result
-- `updateTheme(theme)` - Updates the SDK theme at runtime
-
-### CardTransaction
-
-Represents a payment transaction.
-
-#### Properties
-
-- `amount: Money` - The transaction amount
-- `orderId: String` - Unique order identifier (required, cannot be blank)
-- `billingInfo: BillingInfo` - **Required** billing information (cannot be null)
-- `flowType: FlowType` - Transaction type (`CARD_PAYMENT` or `CARD_STORAGE`)
-- `billingAddressRequired: Boolean` - Whether billing address is required
-
-### BillingInfo
-
-Represents billing information for a customer.
-
-#### Required Properties
-
-- `firstName: String` - Customer's first name (required, cannot be blank)
-- `lastName: String` - Customer's last name (required, cannot be blank)
-- `email: String` - Customer's email address (required, cannot be blank)
-
-#### Optional Properties
-
-- `address: Address?` - Customer's billing address (optional)
-- `phone: Phone?` - Customer's phone number (optional)
-
-### Configuration
-
-SDK configuration settings.
-
-#### Properties
-
-- `clientId: String` - Your client ID
-- `clientSecret: String` - Your client secret
-- `environment: Environment` - `PRODUCTION` or `SANDBOX`
-
-## Error Handling
-
-The SDK provides detailed error information:
-
-```kotlin
-when (result) {
+when (transactionResult) {
     is CardTransactionResult.Success -> {
-        val transactionId = result.transactionId
-        // Transaction successful
+        val details = transactionResult.details
+        println("Transaction ID: ${details.transactionId}")
+        println("Customer Token: ${details.customerToken}")
     }
     is CardTransactionResult.Failure -> {
-        when (result.error) {
-            is CardTransactionError.Cancelled -> {
-                // User cancelled the transaction
-            }
-            is CardTransactionError.NetworkError -> {
-                // Network error occurred
-            }
-            is CardTransactionError.ValidationError -> {
-                // Validation failed
-            }
-            is CardTransactionError.SecurityError -> {
-                // Security check failed (e.g., rooted device)
-            }
-            else -> {
-                // Other errors
-            }
-        }
+        println("Error: ${transactionResult.error}")
+        // Access partial data if available
+        transactionResult.transactionId?.let { println("Partial Transaction ID: $it") }
+        transactionResult.customerToken?.let { println("Partial Customer Token: $it") }
+    }
+    null -> {
+        println("No result received")
     }
 }
 ```
 
-## ProGuard Rules
+#### Error Types (`CardTransactionError`)
 
-If you're using ProGuard/R8, add these rules to your `proguard-rules.pro`:
+| Error | Description |
+|-------|-------------|
+| `CompromisedDevice` | Device is rooted/compromised |
+| `Canceled` | User cancelled the transaction |
+| `Declined(declineCode)` | Transaction was declined |
+| `NoSchemeForCurrency` | No payment scheme available for currency |
+| `UnknownTransactionState` | Transaction state could not be determined |
+| `ServerError(serverError)` | Server-side error occurred |
+| `InvalidInput` | Input validation failed |
 
-```proguard
-# PayPipes SDK
--keep class com.punext.paypipes.** { *; }
--dontwarn com.punext.paypipes.**
-```
+## Project Structure
 
-## Security
+*   **`paypipes-sdk`**: The core library module.
+    *   `src/main/java/com/punext/paypipes/`: Source code.
+    *   `src/main/res/`: Resources (strings, drawables, themes).
+*   **`example-app`**: A consumer application module.
+    *   Used for testing and demonstrating SDK integration.
+    *   Contains example usage of `PayPipesUI`.
 
-- **Device Integrity**: The SDK checks for compromised devices (root/jailbreak)
-- **Secure Storage**: Sensitive data is handled securely
-- **Screen Protection**: Screenshots are prevented during payment flows
-- **Network Security**: All network requests use HTTPS with certificate pinning
+## Development Guidelines
 
-## Support
+### Build & Dependencies
 
-For issues, questions, or feature requests, please contact:
-- Email: pnemecek@purple-technology.com
+The project uses Gradle Kotlin DSL (`.kts`).
 
-## License
+*   **Minimum SDK**: 29 (Android 10)
+*   **Compile SDK**: 35
+*   **Jetpack Compose**: Used for all UI.
+*   **Coroutines**: Used for asynchronous tasks.
+*   **OkHttp**: Used for networking.
+*   **Gson**: Used for JSON serialization.
 
-Proprietary - All rights reserved.
+**Note**: We strictly limit external dependencies to keep the SDK lightweight. Avoid adding new libraries (like Retrofit, Dagger/Hilt) to the SDK module unless absolutely necessary.
 
-## Changelog
+### API Design
 
-See [CHANGELOG.md](CHANGELOG.md) for version history and changes.
+*   **`PayPipesUI`**: The main public entry point.
+    *   `buildCardTransactionIntent`: Creates the Intent to launch the SDK.
+    *   `updateTheme`: Allows runtime theme updates.
+*   **Result Handling**: The SDK returns results via standard Android Activity results (`Activity.RESULT_OK`, `Activity.RESULT_CANCELED`) with a `CardTransactionResult` Parcelable extra.
 
+### Security Best Practices
+
+*   **Sensitive Data**: Never log full card numbers or CVV. Use `SecureString` where possible.
+*   **Root Detection**: The SDK checks for root access on initialization and will refuse to run on compromised devices.
+*   **Screen Protection**: `FLAG_SECURE` is applied to the window to prevent screenshots/recording in production environments.
+
+## Key Contacts & Maintainers
+
+*   Pavel Nemecek, pnemecek@purple-technology.com
+
+---
+*This document is for internal use. Information may change as the SDK evolves.*

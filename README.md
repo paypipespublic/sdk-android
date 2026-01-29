@@ -1,6 +1,6 @@
 # PayPipes Android SDK
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/paypipespublic/punext-pms-sdk-android)
+[![Version](https://img.shields.io/badge/version-1.0.3-blue.svg)](https://github.com/paypipespublic/punext-pms-sdk-android)
 [![Platform](https://img.shields.io/badge/platform-Android%2010%2B-lightgrey.svg)](https://developer.android.com)
 [![Kotlin](https://img.shields.io/badge/kotlin-1.9+-purple.svg)](https://kotlinlang.org)
 ![License](https://img.shields.io/badge/license-Proprietary-red.svg)
@@ -45,7 +45,7 @@ Add the PayPipes SDK dependency to your app's `build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("com.punext:paypipes:1.0.0")
+    implementation("com.punext:paypipes:1.0.3")
 }
 ```
 
@@ -57,7 +57,7 @@ dependencies {
 
 ```kotlin
 dependencies {
-    implementation(files("libs/paypipes-1.0.0.aar"))
+    implementation(files("libs/paypipes-1.0.3.aar"))
 }
 ```
 
@@ -73,7 +73,11 @@ import com.punext.paypipes.model.Environment
 val configuration = Configuration(
     clientId = "your-client-id",
     clientSecret = "your-client-secret",
-    environment = Environment.PRODUCTION // or Environment.SANDBOX
+    companyName = "Your Company",
+    termsUrl = "https://yourcompany.com/terms",
+    environment = Environment.PRODUCTION, // or Environment.SANDBOX
+    isLoggingEnabled = false,
+    language = null // Use system language, or SDKLanguage.ENGLISH, SDKLanguage.CZECH
 )
 ```
 
@@ -82,24 +86,27 @@ val configuration = Configuration(
 ```kotlin
 import com.punext.paypipes.model.CardTransaction
 import com.punext.paypipes.model.Money
-import com.punext.paypipes.model.BillingInfo
+import com.punext.paypipes.model.CustomerDetails
 
-// BillingInfo is required - create it with mandatory fields
-val billingInfo = BillingInfo(
+// CustomerDetails is required
+val customerDetails = CustomerDetails(
     firstName = "John",
     lastName = "Smith",
     email = "john.smith@example.com",
     address = null, // Optional
-    phone = null // Optional
+    phone = null, // Optional
+    legalEntity = LegalEntity.PRIVATE, // or LegalEntity.BUSINESS
+    referenceId = null // Optional: your unique customer identifier
 )
 
-val amount = Money(amount = 10.00, currency = "USD")
+val amount = Money(amount = BigDecimal("10.00"), currency = "USD")
 val transaction = CardTransaction(
-    amount = amount,
     orderId = UUID.randomUUID().toString(),
-    billingInfo = billingInfo,
+    customerDetails = customerDetails,
+    amount = amount,
     flowType = FlowType.CARD_PAYMENT,
-    billingAddressRequired = false
+    billingAddressRequired = false,
+    callbackUrl = null // Optional: URL for server callbacks
 )
 
 val intent = PayPipesUI.buildCardTransactionIntent(
@@ -118,30 +125,31 @@ startActivityForResult(intent, REQUEST_CODE_PAYMENT)
 ### 4. Handle the Result
 
 ```kotlin
-override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-    super.onActivityResult(requestCode, resultCode, data)
-    
-    if (requestCode == REQUEST_CODE_PAYMENT) {
-        when (resultCode) {
-            Activity.RESULT_OK -> {
-                val result = PayPipesUI.getTransactionResult(data)
-                when (result) {
-                    is CardTransactionResult.Success -> {
-                        val transactionId = result.transactionId
-                        // Payment successful
-                    }
-                    is CardTransactionResult.Failure -> {
-                        val error = result.error
-                        // Handle error
-                    }
-                }
-            }
-            Activity.RESULT_CANCELED -> {
-                // User cancelled
-            }
+// Using Activity Result API (recommended)
+private val paymentLauncher = registerForActivityResult(
+    ActivityResultContracts.StartActivityForResult()
+) { result ->
+    val transactionResult = CardTransactionActivity.extractResult(result.data)
+    when (transactionResult) {
+        is CardTransactionResult.Success -> {
+            val transactionId = transactionResult.details.transactionId
+            val customerToken = transactionResult.details.customerToken
+            // Payment successful
+        }
+        is CardTransactionResult.Failure -> {
+            val error = transactionResult.error
+            // Partial data may be available
+            transactionResult.transactionId?.let { /* transaction was created */ }
+            transactionResult.customerToken?.let { /* customer was created */ }
+        }
+        null -> {
+            // No result or cancelled
         }
     }
 }
+
+// Launch payment
+paymentLauncher.launch(intent)
 ```
 
 ## Configuration
@@ -149,56 +157,55 @@ override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) 
 ### Custom Theme
 
 ```kotlin
-import com.punext.paypipes.model.Theme
+import com.punext.paypipes.theme.Theme
+import com.punext.paypipes.theme.ThemeColors
+import com.punext.paypipes.theme.ThemeFonts
 
 val customTheme = Theme(
-    colors = Theme.Colors(
-        primary = Color(0xFF1976D2),
-        background = Color.White,
+    colors = ThemeColors(
+        screenBackgroundColor = Color(0xFFF5F5F5),
+        buttonBackgroundColor = Color(0xFF1976D2),
+        buttonTitleColor = Color.White
         // ... customize other colors
     ),
-    fonts = Theme.Fonts(
-        title = Font(24.sp, FontWeight.Bold),
+    fonts = ThemeFonts(
+        buttonTitleFont = FontWeight.Bold
         // ... customize other fonts
-    )
-)
-
-val configuration = Configuration(
-    clientId = "your-client-id",
-    clientSecret = "your-client-secret",
-    environment = Environment.PRODUCTION,
-    theme = customTheme
+    ),
+    mode = ThemeMode.Auto // Auto, Light, or Dark
 )
 
 // Update theme at runtime
 PayPipesUI.updateTheme(customTheme)
 ```
 
-### Billing Address
+### Customer Details
 
-**BillingInfo is mandatory** for all transactions. The following fields are required:
-- `firstName: String` - Customer's first name (required, cannot be blank)
-- `lastName: String` - Customer's last name (required, cannot be blank)
-- `email: String` - Customer's email address (required, cannot be blank)
-- `address: Address?` - Optional billing address
-- `phone: Phone?` - Optional phone number
+**CustomerDetails is mandatory** for all transactions. The following fields are required:
+- `firstName: String` - Customer's first name
+- `lastName: String` - Customer's last name
+- `email: String` - Customer's email address
+
+The following fields are optional:
+- `address: Address?` - Customer's billing address
+- `phone: Phone?` - Customer's phone number
+- `legalEntity: LegalEntity` - `PRIVATE` (default) or `BUSINESS`
+- `referenceId: String?` - Your unique customer identifier (max 255 chars)
 
 ```kotlin
-import com.punext.paypipes.model.BillingInfo
+import com.punext.paypipes.model.CustomerDetails
 import com.punext.paypipes.model.Address
 import com.punext.paypipes.model.Phone
 
-// Minimal required BillingInfo
-val minimalBillingInfo = BillingInfo(
+// Minimal required CustomerDetails
+val minimalCustomerDetails = CustomerDetails(
     firstName = "John",
     lastName = "Smith",
-    email = "john.smith@example.com",
-    address = null,
-    phone = null
+    email = "john.smith@example.com"
 )
 
-// Complete BillingInfo with address and phone
-val completeBillingInfo = BillingInfo(
+// Complete CustomerDetails with all fields
+val completeCustomerDetails = CustomerDetails(
     firstName = "John",
     lastName = "Smith",
     email = "john.smith@example.com",
@@ -209,15 +216,18 @@ val completeBillingInfo = BillingInfo(
         postCode = "10001",
         country = "US"
     ),
-    phone = Phone(number = "1234567890", countryCode = "+1")
+    phone = Phone(number = "1234567890", countryCode = "+1"),
+    legalEntity = LegalEntity.PRIVATE,
+    referenceId = "customer-123"
 )
 
 val transaction = CardTransaction(
-    amount = amount,
     orderId = UUID.randomUUID().toString(),
-    billingInfo = completeBillingInfo, // Required - cannot be null
+    customerDetails = completeCustomerDetails,
+    amount = amount,
     flowType = FlowType.CARD_PAYMENT,
-    billingAddressRequired = true
+    billingAddressRequired = true,
+    callbackUrl = "https://yourserver.com/callback"
 )
 ```
 
@@ -248,26 +258,29 @@ Represents a payment transaction.
 
 #### Properties
 
+- `orderId: String` - Unique order identifier
+- `customerDetails: CustomerDetails` - **Required** customer information
 - `amount: Money` - The transaction amount
-- `orderId: String` - Unique order identifier (required, cannot be blank)
-- `billingInfo: BillingInfo` - **Required** billing information (cannot be null)
 - `flowType: FlowType` - Transaction type (`CARD_PAYMENT` or `CARD_STORAGE`)
 - `billingAddressRequired: Boolean` - Whether billing address is required
+- `callbackUrl: String?` - Optional URL for server callbacks
 
-### BillingInfo
+### CustomerDetails
 
-Represents billing information for a customer.
+Represents customer information for a transaction.
 
 #### Required Properties
 
-- `firstName: String` - Customer's first name (required, cannot be blank)
-- `lastName: String` - Customer's last name (required, cannot be blank)
-- `email: String` - Customer's email address (required, cannot be blank)
+- `firstName: String` - Customer's first name
+- `lastName: String` - Customer's last name
+- `email: String` - Customer's email address
 
 #### Optional Properties
 
-- `address: Address?` - Customer's billing address (optional)
-- `phone: Phone?` - Customer's phone number (optional)
+- `address: Address?` - Customer's billing address
+- `phone: Phone?` - Customer's phone number
+- `legalEntity: LegalEntity` - `PRIVATE` (default) or `BUSINESS`
+- `referenceId: String?` - Your unique customer identifier (max 255 chars)
 
 ### Configuration
 
@@ -277,7 +290,12 @@ SDK configuration settings.
 
 - `clientId: String` - Your client ID
 - `clientSecret: String` - Your client secret
+- `companyName: String` - Displayed in payment form
+- `termsUrl: String` - URL to your terms and conditions
 - `environment: Environment` - `PRODUCTION` or `SANDBOX`
+- `isLoggingEnabled: Boolean` - Enable SDK logging (default: `false`)
+- `isScreenCaptureEnabled: Boolean` - Allow screenshots (default: `false`)
+- `language: SDKLanguage?` - Override display language (`ENGLISH`, `CZECH`)
 
 ## Error Handling
 
@@ -286,27 +304,38 @@ The SDK provides detailed error information:
 ```kotlin
 when (result) {
     is CardTransactionResult.Success -> {
-        val transactionId = result.transactionId
+        val transactionId = result.details.transactionId
+        val customerToken = result.details.customerToken
         // Transaction successful
     }
     is CardTransactionResult.Failure -> {
-        when (result.error) {
-            is CardTransactionError.Cancelled -> {
+        when (val error = result.error) {
+            is CardTransactionError.CompromisedDevice -> {
+                // Device is rooted/compromised
+            }
+            is CardTransactionError.Canceled -> {
                 // User cancelled the transaction
             }
-            is CardTransactionError.NetworkError -> {
-                // Network error occurred
+            is CardTransactionError.Declined -> {
+                // Transaction was declined: error.declineCode
             }
-            is CardTransactionError.ValidationError -> {
-                // Validation failed
+            is CardTransactionError.NoSchemeForCurrency -> {
+                // No payment scheme available for currency
             }
-            is CardTransactionError.SecurityError -> {
-                // Security check failed (e.g., rooted device)
+            is CardTransactionError.UnknownTransactionState -> {
+                // Transaction state could not be determined
             }
-            else -> {
-                // Other errors
+            is CardTransactionError.ServerError -> {
+                // Server-side error: error.serverError.message
+            }
+            is CardTransactionError.InvalidInput -> {
+                // Input validation failed
             }
         }
+        
+        // Partial data may be available even on failure
+        result.transactionId?.let { println("Transaction was created: $it") }
+        result.customerToken?.let { println("Customer was created: $it") }
     }
 }
 ```

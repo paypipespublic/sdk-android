@@ -2,6 +2,7 @@ package com.punext.paypipes.example
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.punext.paypipes.model.SDKLanguage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,6 +31,9 @@ class ExampleViewModel : ViewModel() {
     private val _isCustomThemeEnabled = MutableStateFlow(false)
     val isCustomThemeEnabled: StateFlow<Boolean> = _isCustomThemeEnabled.asStateFlow()
     
+    private val _selectedLanguage = MutableStateFlow<SDKLanguage?>(null) // null = use system language
+    val selectedLanguage: StateFlow<SDKLanguage?> = _selectedLanguage.asStateFlow()
+    
     private val _firstName = MutableStateFlow("John")
     val firstName: StateFlow<String> = _firstName.asStateFlow()
     
@@ -38,6 +42,9 @@ class ExampleViewModel : ViewModel() {
     
     private val _email = MutableStateFlow("john.smith@example.com")
     val email: StateFlow<String> = _email.asStateFlow()
+    
+    private val _referenceId = MutableStateFlow("")
+    val referenceId: StateFlow<String> = _referenceId.asStateFlow()
     
     fun updateCurrency(currency: String) {
         _selectedCurrency.value = currency
@@ -63,6 +70,10 @@ class ExampleViewModel : ViewModel() {
         _isCustomThemeEnabled.value = enabled
     }
     
+    fun updateSelectedLanguage(language: SDKLanguage?) {
+        _selectedLanguage.value = language
+    }
+    
     fun updateFirstName(firstName: String) {
         _firstName.value = firstName
     }
@@ -73,6 +84,10 @@ class ExampleViewModel : ViewModel() {
     
     fun updateEmail(email: String) {
         _email.value = email
+    }
+    
+    fun updateReferenceId(referenceId: String) {
+        _referenceId.value = referenceId
     }
 }
 

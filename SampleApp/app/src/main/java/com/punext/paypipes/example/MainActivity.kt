@@ -27,6 +27,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Check
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.punext.paypipes.PayPipesUI
 import com.punext.paypipes.model.*
@@ -118,7 +121,7 @@ class MainActivity : ComponentActivity() {
 
     private fun startCardPayment(viewModel: ExampleViewModel) {
         try {
-            val configuration = createConfiguration()
+            val configuration = createConfiguration(viewModel)
             val transaction = createPaymentTransaction(viewModel)
             PayPipes.initialize(configuration)
             val intent = PayPipesUI.buildCardTransactionIntent(
@@ -134,7 +137,7 @@ class MainActivity : ComponentActivity() {
 
     private fun startCardStorage(viewModel: ExampleViewModel) {
         try {
-            val configuration = createConfiguration()
+            val configuration = createConfiguration(viewModel)
             val transaction = createCardStorageTransaction(viewModel)
             PayPipes.initialize(configuration)
             val intent = PayPipesUI.buildCardTransactionIntent(
@@ -220,11 +223,15 @@ class MainActivity : ComponentActivity() {
     private fun handleTransactionResult(result: CardTransactionResult?) {
         when (result) {
             is CardTransactionResult.Success -> {
-                showToast(getString(R.string.payment_successful, result.details.transactionId))
+                val message = buildString {
+                    append("Transaction ID: ${result.details.transactionId}")
+                    append("\n\nCustomer Token: ${result.details.customerToken}")
+                }
+                showResultDialog(getString(R.string.success), message)
             }
 
             is CardTransactionResult.Failure -> {
-                val errorMessage = when (val error = result.error) {
+                var errorMessage = when (val error = result.error) {
                     is CardTransactionError.Declined -> getString(R.string.payment_declined, error.declineCode)
                     is CardTransactionError.Canceled -> getString(R.string.payment_cancelled)
                     is CardTransactionError.UnknownTransactionState -> getString(R.string.payment_unknown_state)
@@ -233,20 +240,33 @@ class MainActivity : ComponentActivity() {
                     is CardTransactionError.NoSchemeForCurrency -> getString(R.string.payment_no_scheme)
                     is CardTransactionError.InvalidInput -> getString(R.string.payment_invalid_input)
                 }
-                showToast(getString(R.string.payment_failed, errorMessage))
+                
+                // Append partial data if available
+                result.transactionId?.let { errorMessage += "\n\nTransaction ID: $it" }
+                result.customerToken?.let { errorMessage += "\n\nCustomer Token: $it" }
+                
+                showResultDialog(getString(R.string.payment_failed_title), errorMessage)
             }
 
             null -> {
-                showToast(getString(R.string.no_result_received))
+                showResultDialog(getString(R.string.error), getString(R.string.no_result_received))
             }
         }
+    }
+    
+    private fun showResultDialog(title: String, message: String) {
+        android.app.AlertDialog.Builder(this)
+            .setTitle(title)
+            .setMessage(message)
+            .setPositiveButton(android.R.string.ok, null)
+            .show()
     }
     
     private fun showToast(message: String) {
         Toast.makeText(this, message, Toast.LENGTH_LONG).show()
     }
 
-    private fun createConfiguration(): Configuration {
+    private fun createConfiguration(viewModel: ExampleViewModel): Configuration {
         return Configuration(
             clientId = Credentials.clientId,
             clientSecret = Credentials.clientSecret,
@@ -254,7 +274,8 @@ class MainActivity : ComponentActivity() {
             termsUrl = Credentials.termsUrl,
             environment = Environment.SANDBOX,
             isLoggingEnabled = true,
-            isScreenCaptureEnabled = true
+            isScreenCaptureEnabled = true,
+            language = viewModel.selectedLanguage.value
         )
     }
 
@@ -268,9 +289,10 @@ class MainActivity : ComponentActivity() {
         return CardTransaction(
             amount = Money(amount = transactionAmount, currency = viewModel.selectedCurrency.value),
             orderId = "order_${System.currentTimeMillis()}",
-            billingInfo = createSampleBillingInfo(viewModel),
+            customerDetails = createSampleCustomerDetails(viewModel),
             flowType = FlowType.CARD_PAYMENT,
-            billingAddressRequired = viewModel.billingAddressRequired.value
+            billingAddressRequired = viewModel.billingAddressRequired.value,
+            callbackUrl = Credentials.sampleCallbackUrl
         )
     }
 
@@ -278,20 +300,23 @@ class MainActivity : ComponentActivity() {
         return CardTransaction(
             amount = Money.ZERO, // Zero amount for card storage
             orderId = "storage_${System.currentTimeMillis()}",
-            billingInfo = createSampleBillingInfo(viewModel),
+            customerDetails = createSampleCustomerDetails(viewModel),
             flowType = FlowType.CARD_STORAGE,
-            billingAddressRequired = viewModel.billingAddressRequired.value
+            billingAddressRequired = viewModel.billingAddressRequired.value,
+            callbackUrl = Credentials.sampleCallbackUrl
         )
     }
 
-    private fun createSampleBillingInfo(viewModel: ExampleViewModel): BillingInfo {
-        return BillingInfo(
+    private fun createSampleCustomerDetails(viewModel: ExampleViewModel): CustomerDetails {
+        val refId = viewModel.referenceId.value.ifBlank { null }
+        return CustomerDetails(
             firstName = viewModel.firstName.value,
             lastName = viewModel.lastName.value,
             email = viewModel.email.value,
             address = if (viewModel.billingAddressProvided.value) Credentials.sampleAddress else null,
             phone = Credentials.samplePhone,
-            legalEntity = if (viewModel.isBusinessCustomer.value) LegalEntity.BUSINESS else LegalEntity.PRIVATE
+            legalEntity = if (viewModel.isBusinessCustomer.value) LegalEntity.BUSINESS else LegalEntity.PRIVATE,
+            referenceId = refId
         )
     }
 }
@@ -312,9 +337,11 @@ fun ExampleAppContent(
     val billingAddressProvided by viewModel.billingAddressProvided.collectAsState()
     val isBusinessCustomer by viewModel.isBusinessCustomer.collectAsState()
     val isCustomThemeEnabled by viewModel.isCustomThemeEnabled.collectAsState()
+    val selectedLanguage by viewModel.selectedLanguage.collectAsState()
     val firstName by viewModel.firstName.collectAsState()
     val lastName by viewModel.lastName.collectAsState()
     val email by viewModel.email.collectAsState()
+    val referenceId by viewModel.referenceId.collectAsState()
     val keyboardController = LocalSoftwareKeyboardController.current
     val scrollState = rememberScrollState()
     
@@ -381,6 +408,15 @@ fun ExampleAppContent(
             onLastNameChange = { viewModel.updateLastName(it) },
             email = email,
             onEmailChange = { viewModel.updateEmail(it) },
+            referenceId = referenceId,
+            onReferenceIdChange = { viewModel.updateReferenceId(it) },
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+
+        // Language selector
+        LanguageSelector(
+            selectedLanguage = selectedLanguage,
+            onLanguageChange = { viewModel.updateSelectedLanguage(it) },
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
@@ -634,6 +670,8 @@ fun BillingInfoInputs(
     onLastNameChange: (String) -> Unit,
     email: String,
     onEmailChange: (String) -> Unit,
+    referenceId: String,
+    onReferenceIdChange: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -685,6 +723,18 @@ fun BillingInfoInputs(
                 value = email,
                 onValueChange = onEmailChange,
                 label = { Text(context.getString(R.string.email_hint)) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = ThemeConstants.colorDarkBlue,
+                    unfocusedBorderColor = ThemeConstants.colorLightGray
+                )
+            )
+
+            OutlinedTextField(
+                value = referenceId,
+                onValueChange = onReferenceIdChange,
+                label = { Text(context.getString(R.string.reference_id_hint)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
@@ -799,7 +849,91 @@ fun BillingInfoInputs(
             }
         }
     }
-} 
+}
+
+@Composable
+fun LanguageSelector(
+    selectedLanguage: SDKLanguage?,
+    onLanguageChange: (SDKLanguage?) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    var expanded by remember { mutableStateOf(false) }
+    
+    val languageOptions = listOf(
+        null to context.getString(R.string.language_system),
+        SDKLanguage.ENGLISH to context.getString(R.string.language_english),
+        SDKLanguage.CZECH to context.getString(R.string.language_czech)
+    )
+    
+    val selectedLabel = languageOptions.find { it.first == selectedLanguage }?.second 
+        ?: context.getString(R.string.language_system)
+    
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Text(
+                text = context.getString(R.string.language_title),
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = ThemeConstants.colorDarkBlue
+                ),
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            
+            Text(
+                text = context.getString(R.string.language_description),
+                style = MaterialTheme.typography.bodySmall.copy(
+                    color = Color(0xFF757575)
+                ),
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+            
+            Box {
+                OutlinedButton(
+                    onClick = { expanded = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = selectedLabel,
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.Start
+                    )
+                    Icon(
+                        imageVector = Icons.Default.ArrowDropDown,
+                        contentDescription = null
+                    )
+                }
+                
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false },
+                    modifier = Modifier.fillMaxWidth(0.9f)
+                ) {
+                    languageOptions.forEach { (language, label) ->
+                        DropdownMenuItem(
+                            text = { Text(label) },
+                            onClick = {
+                                onLanguageChange(language)
+                                expanded = false
+                            },
+                            leadingIcon = if (language == selectedLanguage) {
+                                { Icon(Icons.Default.Check, contentDescription = null) }
+                            } else null
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 // MARK: - Constants
 
 private object Credentials {
@@ -809,6 +943,7 @@ private object Credentials {
     const val termsUrl = "https://www.paypipes.com"
     
     const val defaultAmount = "10.00"
+    const val sampleCallbackUrl = "https://example.com/callback"
     
     val sampleAddress = Address(
         street = "123 Fake Street",

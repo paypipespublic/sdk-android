@@ -15,6 +15,7 @@
     <string name="first_name_hint">First Name</string>
     <string name="last_name_hint">Last Name</string>
     <string name="email_hint">Email</string>
+    <string name="reference_id_hint">Reference ID (optional)</string>
     
     <!-- Billing Address -->
     <string name="billing_address_required">Billing address required</string>
@@ -23,6 +24,13 @@
     <string name="billing_address_provided_description">Billing address provided by the merchant</string>
     <string name="business_customer">Business customer</string>
     <string name="business_customer_description">Set legal entity to business</string>
+    
+    <!-- Language -->
+    <string name="language_title">SDK Language</string>
+    <string name="language_description">Override SDK display language</string>
+    <string name="language_system">System (auto)</string>
+    <string name="language_english">English</string>
+    <string name="language_czech">Czech</string>
     
     <!-- Theme -->
     <string name="custom_theme_title">Custom Theme</string>
@@ -41,6 +49,8 @@
     
     <!-- Messages -->
     <string name="sdk_version">SDK Version: %1$s</string>
+    <string name="success">Success</string>
+    <string name="error">Error</string>
     <string name="payment_successful">Payment successful! Transaction ID: %1$s</string>
     <string name="payment_declined">Payment was declined (Code: %1$s)</string>
     <string name="payment_cancelled">Payment was cancelled</string>
@@ -50,6 +60,7 @@
     <string name="payment_no_scheme">No scheme for currency</string>
     <string name="payment_invalid_input">Invalid input</string>
     <string name="payment_failed">Payment failed: %1$s</string>
+    <string name="payment_failed_title">Payment Failed</string>
     <string name="no_result_received">No result received</string>
     <string name="transaction_cancelled">Transaction was cancelled</string>
     <string name="failed_to_start_payment">Failed to start payment: %1$s</string>

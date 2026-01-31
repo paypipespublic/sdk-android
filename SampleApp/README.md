@@ -37,7 +37,7 @@ This is a complete, standalone Android project demonstrating PayPipes SDK integr
 
 The SDK is included via Maven repository:
 ```kotlin
-    implementation("com.punext:paypipes:1.0.3")
+    implementation("com.punext:paypipes:1.0.4")
 ```
 
 The Maven repository is configured in `settings.gradle.kts` to point to the `../repository` directory.

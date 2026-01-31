@@ -1,6 +1,6 @@
 # PayPipes Android SDK
 
-[![Version](https://img.shields.io/badge/version-1.0.3-blue.svg)](https://github.com/paypipespublic/punext-pms-sdk-android)
+[![Version](https://img.shields.io/badge/version-1.0.4-blue.svg)](https://github.com/paypipespublic/punext-pms-sdk-android)
 [![Platform](https://img.shields.io/badge/platform-Android%2010%2B-lightgrey.svg)](https://developer.android.com)
 [![Kotlin](https://img.shields.io/badge/kotlin-1.9+-purple.svg)](https://kotlinlang.org)
 ![License](https://img.shields.io/badge/license-Proprietary-red.svg)
@@ -45,7 +45,7 @@ Add the PayPipes SDK dependency to your app's `build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("com.punext:paypipes:1.0.3")
+    implementation("com.punext:paypipes:1.0.4")
 }
 ```
 
@@ -57,7 +57,7 @@ dependencies {
 
 ```kotlin
 dependencies {
-    implementation(files("libs/paypipes-1.0.3.aar"))
+    implementation(files("libs/paypipes-1.0.4.aar"))
 }
 ```
 
@@ -65,6 +65,9 @@ dependencies {
 
 ### 1. Configure the SDK
 
+The SDK supports two authentication modes:
+
+**Option A: Client Credentials** (recommended for most integrations)
 ```kotlin
 import com.punext.paypipes.PayPipesUI
 import com.punext.paypipes.model.Configuration
@@ -78,6 +81,16 @@ val configuration = Configuration(
     environment = Environment.PRODUCTION, // or Environment.SANDBOX
     isLoggingEnabled = false,
     language = null // Use system language, or SDKLanguage.ENGLISH, SDKLanguage.CZECH
+)
+```
+
+**Option B: Access Token** (for server-managed authentication)
+```kotlin
+val configuration = Configuration(
+    accessToken = "your-pre-obtained-oauth-token",
+    companyName = "Your Company",
+    termsUrl = "https://yourcompany.com/terms",
+    environment = Environment.PRODUCTION
 )
 ```
 
@@ -286,10 +299,18 @@ Represents customer information for a transaction.
 
 SDK configuration settings.
 
-#### Properties
+#### Authentication Properties (one of the following is required)
 
-- `clientId: String` - Your client ID
-- `clientSecret: String` - Your client secret
+| Property | Type | Description |
+|----------|------|-------------|
+| `clientId` | `String?` | Your client ID (required with `clientSecret`) |
+| `clientSecret` | `String?` | Your client secret (required with `clientId`) |
+| `accessToken` | `String?` | Pre-obtained OAuth token (alternative to client credentials) |
+
+> **Note:** Either `accessToken` OR both `clientId` and `clientSecret` must be provided.
+
+#### Other Properties
+
 - `companyName: String` - Displayed in payment form
 - `termsUrl: String` - URL to your terms and conditions
 - `environment: Environment` - `PRODUCTION` or `SANDBOX`

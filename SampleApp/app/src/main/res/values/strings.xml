@@ -25,6 +25,14 @@
     <string name="business_customer">Business customer</string>
     <string name="business_customer_description">Set legal entity to business</string>
     
+    <!-- Authentication -->
+    <string name="auth_title">Authentication</string>
+    <string name="auth_description">Choose authentication method</string>
+    <string name="access_token_hint">Access Token (optional)</string>
+    <string name="access_token_description">If provided, skips OAuth and uses this token directly</string>
+    <string name="use_access_token">Use Access Token</string>
+    <string name="use_access_token_description">Use a pre-obtained token instead of client credentials</string>
+    
     <!-- Language -->
     <string name="language_title">SDK Language</string>
     <string name="language_description">Override SDK display language</string>

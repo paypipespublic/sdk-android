@@ -267,7 +267,23 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun createConfiguration(viewModel: ExampleViewModel): Configuration {
-        return Configuration(
+        val useToken = viewModel.useAccessToken.value
+        val token = viewModel.accessToken.value.ifBlank { null }
+        
+        return if (useToken && token != null) {
+            // Use access token authentication
+            Configuration(
+                accessToken = token,
+                companyName = Credentials.companyName,
+                termsUrl = Credentials.termsUrl,
+                environment = Environment.SANDBOX,
+                isLoggingEnabled = true,
+                isScreenCaptureEnabled = true,
+                language = viewModel.selectedLanguage.value
+            )
+        } else {
+            // Use client credentials authentication
+            Configuration(
             clientId = Credentials.clientId,
             clientSecret = Credentials.clientSecret,
             companyName = Credentials.companyName,
@@ -277,6 +293,7 @@ class MainActivity : ComponentActivity() {
             isScreenCaptureEnabled = true,
             language = viewModel.selectedLanguage.value
         )
+        }
     }
 
     private fun createPaymentTransaction(viewModel: ExampleViewModel): CardTransaction {
@@ -342,6 +359,8 @@ fun ExampleAppContent(
     val lastName by viewModel.lastName.collectAsState()
     val email by viewModel.email.collectAsState()
     val referenceId by viewModel.referenceId.collectAsState()
+    val accessToken by viewModel.accessToken.collectAsState()
+    val useAccessToken by viewModel.useAccessToken.collectAsState()
     val keyboardController = LocalSoftwareKeyboardController.current
     val scrollState = rememberScrollState()
     
@@ -410,6 +429,15 @@ fun ExampleAppContent(
             onEmailChange = { viewModel.updateEmail(it) },
             referenceId = referenceId,
             onReferenceIdChange = { viewModel.updateReferenceId(it) },
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+
+        // Authentication section
+        AuthenticationSection(
+            useAccessToken = useAccessToken,
+            onUseAccessTokenChange = { viewModel.updateUseAccessToken(it) },
+            accessToken = accessToken,
+            onAccessTokenChange = { viewModel.updateAccessToken(it) },
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
@@ -624,7 +652,6 @@ fun CurrencySelector(
                     },
                     colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
                     modifier = Modifier
-                        .menuAnchor()
                         .fillMaxWidth()
                         .semantics { contentDescription = context.getString(R.string.accessibility_currency_dropdown) }
                 )
@@ -743,7 +770,7 @@ fun BillingInfoInputs(
                 )
             )
 
-            Divider(color = Color(0xFFEEEEEE))
+            HorizontalDivider(color = Color(0xFFEEEEEE))
 
             // Required switch
             Row(
@@ -778,7 +805,7 @@ fun BillingInfoInputs(
                 )
             }
 
-            Divider(color = Color(0xFFEEEEEE))
+            HorizontalDivider(color = Color(0xFFEEEEEE))
 
             // Provided switch
             Row(
@@ -813,7 +840,7 @@ fun BillingInfoInputs(
                 )
             }
 
-            Divider(color = Color(0xFFEEEEEE))
+            HorizontalDivider(color = Color(0xFFEEEEEE))
 
             // Business customer switch
             Row(
@@ -906,7 +933,7 @@ fun LanguageSelector(
                         textAlign = TextAlign.Start
                     )
                     Icon(
-                        imageVector = Icons.Default.ArrowDropDown,
+                        imageVector = Icons.Filled.ArrowDropDown,
                         contentDescription = null
                     )
                 }
@@ -924,11 +951,104 @@ fun LanguageSelector(
                                 expanded = false
                             },
                             leadingIcon = if (language == selectedLanguage) {
-                                { Icon(Icons.Default.Check, contentDescription = null) }
+                                { Icon(Icons.Filled.Check, contentDescription = null) }
                             } else null
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun AuthenticationSection(
+    useAccessToken: Boolean,
+    onUseAccessTokenChange: (Boolean) -> Unit,
+    accessToken: String,
+    onAccessTokenChange: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = context.getString(R.string.auth_title),
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = ThemeConstants.colorDarkBlue
+                )
+            )
+            
+            Text(
+                text = context.getString(R.string.auth_description),
+                style = MaterialTheme.typography.bodySmall.copy(
+                    color = Color(0xFF757575)
+                )
+            )
+
+            // Use Access Token switch
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                    Text(
+                        text = context.getString(R.string.use_access_token),
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Medium,
+                            color = ThemeConstants.colorDarkGray
+                        )
+                    )
+                    Text(
+                        text = context.getString(R.string.use_access_token_description),
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            color = Color(0xFF757575)
+                        )
+                    )
+                }
+                Switch(
+                    checked = useAccessToken,
+                    onCheckedChange = onUseAccessTokenChange,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = Color(0xFF2196F3),
+                        uncheckedThumbColor = Color.White,
+                        uncheckedTrackColor = Color(0xFFBDBDBD)
+                    )
+                )
+            }
+
+            // Access Token input field (only shown when useAccessToken is enabled)
+            if (useAccessToken) {
+                OutlinedTextField(
+                    value = accessToken,
+                    onValueChange = onAccessTokenChange,
+                    label = { Text(context.getString(R.string.access_token_hint)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = false,
+                    maxLines = 3,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ThemeConstants.colorDarkBlue,
+                        unfocusedBorderColor = ThemeConstants.colorLightGray
+                    )
+                )
+                
+                Text(
+                    text = context.getString(R.string.access_token_description),
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        color = Color(0xFF757575)
+                    )
+                )
             }
         }
     }

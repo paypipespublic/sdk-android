@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.4] - 2026-01-30
+
+### Added
+- `accessToken` parameter in `Configuration` for using pre-obtained OAuth tokens
+- SDK now supports two authentication modes:
+  - Client credentials: Provide `clientId` and `clientSecret` (existing behavior)
+  - Access token: Provide `accessToken` directly to skip OAuth authentication
+- Verve card scheme support
+
+### Changed
+- **BREAKING:** `clientId` and `clientSecret` are now optional in `Configuration`
+- Configuration validation requires either `accessToken` OR both `clientId` and `clientSecret`
+
 ## [1.0.3] - 2025-01-14
 
 ### Changed

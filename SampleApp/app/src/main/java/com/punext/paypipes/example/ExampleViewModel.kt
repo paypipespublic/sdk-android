@@ -46,6 +46,12 @@ class ExampleViewModel : ViewModel() {
     private val _referenceId = MutableStateFlow("")
     val referenceId: StateFlow<String> = _referenceId.asStateFlow()
     
+    private val _accessToken = MutableStateFlow("")
+    val accessToken: StateFlow<String> = _accessToken.asStateFlow()
+    
+    private val _useAccessToken = MutableStateFlow(false)
+    val useAccessToken: StateFlow<Boolean> = _useAccessToken.asStateFlow()
+    
     fun updateCurrency(currency: String) {
         _selectedCurrency.value = currency
     }
@@ -88,6 +94,14 @@ class ExampleViewModel : ViewModel() {
     
     fun updateReferenceId(referenceId: String) {
         _referenceId.value = referenceId
+    }
+    
+    fun updateAccessToken(token: String) {
+        _accessToken.value = token
+    }
+    
+    fun updateUseAccessToken(use: Boolean) {
+        _useAccessToken.value = use
     }
 }
 

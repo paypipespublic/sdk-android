@@ -56,7 +56,7 @@ android {
 
 dependencies {
     // PayPipes SDK
-    implementation("com.punext:paypipes:1.0.4")
+    implementation("com.punext:paypipes:1.0.5")
     
     // Core Android dependencies
     implementation("androidx.core:core-ktx:1.15.0")

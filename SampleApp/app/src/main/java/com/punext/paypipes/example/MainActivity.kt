@@ -303,10 +303,15 @@ class MainActivity : ComponentActivity() {
         } catch (e: Exception) {
             BigDecimal(Credentials.defaultAmount)
         }
+
+        val useToken = viewModel.useCustomerToken.value
+        val token = viewModel.customerToken.value.ifBlank { null }
+
         return CardTransaction(
             amount = Money(amount = transactionAmount, currency = viewModel.selectedCurrency.value),
             orderId = "order_${System.currentTimeMillis()}",
-            customerDetails = createSampleCustomerDetails(viewModel),
+            customerDetails = if (useToken && token != null) null else createSampleCustomerDetails(viewModel),
+            customerToken = if (useToken) token else null,
             flowType = FlowType.CARD_PAYMENT,
             billingAddressRequired = viewModel.billingAddressRequired.value,
             callbackUrl = Credentials.sampleCallbackUrl
@@ -314,10 +319,14 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun createCardStorageTransaction(viewModel: ExampleViewModel): CardTransaction {
+        val useToken = viewModel.useCustomerToken.value
+        val token = viewModel.customerToken.value.ifBlank { null }
+
         return CardTransaction(
-            amount = Money.ZERO, // Zero amount for card storage
+            amount = Money(amount = BigDecimal(0), currency = viewModel.selectedCurrency.value), // Zero amount for card storage
             orderId = "storage_${System.currentTimeMillis()}",
-            customerDetails = createSampleCustomerDetails(viewModel),
+            customerDetails = if (useToken && token != null) null else createSampleCustomerDetails(viewModel),
+            customerToken = if (useToken) token else null,
             flowType = FlowType.CARD_STORAGE,
             billingAddressRequired = viewModel.billingAddressRequired.value,
             callbackUrl = Credentials.sampleCallbackUrl
@@ -361,6 +370,8 @@ fun ExampleAppContent(
     val referenceId by viewModel.referenceId.collectAsState()
     val accessToken by viewModel.accessToken.collectAsState()
     val useAccessToken by viewModel.useAccessToken.collectAsState()
+    val useCustomerToken by viewModel.useCustomerToken.collectAsState()
+    val customerToken by viewModel.customerToken.collectAsState()
     val keyboardController = LocalSoftwareKeyboardController.current
     val scrollState = rememberScrollState()
     
@@ -429,6 +440,10 @@ fun ExampleAppContent(
             onEmailChange = { viewModel.updateEmail(it) },
             referenceId = referenceId,
             onReferenceIdChange = { viewModel.updateReferenceId(it) },
+            useCustomerToken = useCustomerToken,
+            onUseCustomerTokenChange = { viewModel.updateUseCustomerToken(it) },
+            customerToken = customerToken,
+            onCustomerTokenChange = { viewModel.updateCustomerToken(it) },
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
@@ -599,7 +614,7 @@ fun CurrencySelector(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val currencies = listOf("EUR", "USD", "JPY")
+    val currencies = listOf("EUR", "USD", "JPY", "CZK")
     var expanded by remember { mutableStateOf(false) }
 
     Card(
@@ -652,6 +667,7 @@ fun CurrencySelector(
                     },
                     colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
                     modifier = Modifier
+                        .menuAnchor()
                         .fillMaxWidth()
                         .semantics { contentDescription = context.getString(R.string.accessibility_currency_dropdown) }
                 )
@@ -667,6 +683,7 @@ fun CurrencySelector(
                                     "EUR" -> "EUR - Euro"
                                     "USD" -> "USD - US Dollar"
                                     "JPY" -> "JPY - Japanese Yen"
+                                    "CZK" -> "CZK - Czech Koruna"
                                     else -> currency
                                 }
                                 Text(currencyName)
@@ -699,6 +716,10 @@ fun BillingInfoInputs(
     onEmailChange: (String) -> Unit,
     referenceId: String,
     onReferenceIdChange: (String) -> Unit,
+    useCustomerToken: Boolean,
+    onUseCustomerTokenChange: (Boolean) -> Unit,
+    customerToken: String,
+    onCustomerTokenChange: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -722,53 +743,102 @@ fun BillingInfoInputs(
                 )
             )
 
-            OutlinedTextField(
-                value = firstName,
-                onValueChange = onFirstNameChange,
-                label = { Text(context.getString(R.string.first_name_hint)) },
+            // Customer token switch
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = ThemeConstants.colorDarkBlue,
-                    unfocusedBorderColor = ThemeConstants.colorLightGray
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                    Text(
+                        text = "Use Customer Token",
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Medium,
+                            color = ThemeConstants.colorDarkGray
+                        )
+                    )
+                    Text(
+                        text = "Use a pre-tokenized customer instead of customer details",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            color = Color(0xFF757575)
+                        )
+                    )
+                }
+                Switch(
+                    checked = useCustomerToken,
+                    onCheckedChange = onUseCustomerTokenChange,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = Color(0xFF2196F3),
+                        uncheckedThumbColor = Color.White,
+                        uncheckedTrackColor = Color(0xFFBDBDBD)
+                    )
                 )
-            )
+            }
 
-            OutlinedTextField(
-                value = lastName,
-                onValueChange = onLastNameChange,
-                label = { Text(context.getString(R.string.last_name_hint)) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = ThemeConstants.colorDarkBlue,
-                    unfocusedBorderColor = ThemeConstants.colorLightGray
+            if (useCustomerToken) {
+                OutlinedTextField(
+                    value = customerToken,
+                    onValueChange = onCustomerTokenChange,
+                    label = { Text("Customer Token") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ThemeConstants.colorDarkBlue,
+                        unfocusedBorderColor = ThemeConstants.colorLightGray
+                    )
                 )
-            )
+            }
 
-            OutlinedTextField(
-                value = email,
-                onValueChange = onEmailChange,
-                label = { Text(context.getString(R.string.email_hint)) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = ThemeConstants.colorDarkBlue,
-                    unfocusedBorderColor = ThemeConstants.colorLightGray
+            if (!useCustomerToken) {
+                OutlinedTextField(
+                    value = firstName,
+                    onValueChange = onFirstNameChange,
+                    label = { Text(context.getString(R.string.first_name_hint)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ThemeConstants.colorDarkBlue,
+                        unfocusedBorderColor = ThemeConstants.colorLightGray
+                    )
                 )
-            )
 
-            OutlinedTextField(
-                value = referenceId,
-                onValueChange = onReferenceIdChange,
-                label = { Text(context.getString(R.string.reference_id_hint)) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = ThemeConstants.colorDarkBlue,
-                    unfocusedBorderColor = ThemeConstants.colorLightGray
+                OutlinedTextField(
+                    value = lastName,
+                    onValueChange = onLastNameChange,
+                    label = { Text(context.getString(R.string.last_name_hint)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ThemeConstants.colorDarkBlue,
+                        unfocusedBorderColor = ThemeConstants.colorLightGray
+                    )
                 )
-            )
+
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = onEmailChange,
+                    label = { Text(context.getString(R.string.email_hint)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ThemeConstants.colorDarkBlue,
+                        unfocusedBorderColor = ThemeConstants.colorLightGray
+                    )
+                )
+
+                OutlinedTextField(
+                    value = referenceId,
+                    onValueChange = onReferenceIdChange,
+                    label = { Text(context.getString(R.string.reference_id_hint)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ThemeConstants.colorDarkBlue,
+                        unfocusedBorderColor = ThemeConstants.colorLightGray
+                    )
+                )
+            }
 
             HorizontalDivider(color = Color(0xFFEEEEEE))
 
@@ -805,74 +875,76 @@ fun BillingInfoInputs(
                 )
             }
 
-            HorizontalDivider(color = Color(0xFFEEEEEE))
+            if (!useCustomerToken) {
+                HorizontalDivider(color = Color(0xFFEEEEEE))
 
-            // Provided switch
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                    Text(
-                        text = context.getString(R.string.billing_address_provided),
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontWeight = FontWeight.Medium,
-                            color = ThemeConstants.colorDarkGray
+                // Provided switch
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                        Text(
+                            text = context.getString(R.string.billing_address_provided),
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.Medium,
+                                color = ThemeConstants.colorDarkGray
+                            )
                         )
-                    )
-                    Text(
-                        text = context.getString(R.string.billing_address_provided_description),
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            color = Color(0xFF757575)
+                        Text(
+                            text = context.getString(R.string.billing_address_provided_description),
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = Color(0xFF757575)
+                            )
+                        )
+                    }
+                    Switch(
+                        checked = billingAddressProvided,
+                        onCheckedChange = onBillingAddressProvidedChange,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = Color(0xFF4CAF50),
+                            uncheckedThumbColor = Color.White,
+                            uncheckedTrackColor = Color(0xFFBDBDBD)
                         )
                     )
                 }
-                Switch(
-                    checked = billingAddressProvided,
-                    onCheckedChange = onBillingAddressProvidedChange,
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
-                        checkedTrackColor = Color(0xFF4CAF50),
-                        uncheckedThumbColor = Color.White,
-                        uncheckedTrackColor = Color(0xFFBDBDBD)
-                    )
-                )
-            }
 
-            HorizontalDivider(color = Color(0xFFEEEEEE))
+                HorizontalDivider(color = Color(0xFFEEEEEE))
 
-            // Business customer switch
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                    Text(
-                        text = context.getString(R.string.business_customer),
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontWeight = FontWeight.Medium,
-                            color = ThemeConstants.colorDarkGray
+                // Business customer switch
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                        Text(
+                            text = context.getString(R.string.business_customer),
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.Medium,
+                                color = ThemeConstants.colorDarkGray
+                            )
                         )
-                    )
-                    Text(
-                        text = context.getString(R.string.business_customer_description),
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            color = Color(0xFF757575)
+                        Text(
+                            text = context.getString(R.string.business_customer_description),
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = Color(0xFF757575)
+                            )
+                        )
+                    }
+                    Switch(
+                        checked = isBusinessCustomer,
+                        onCheckedChange = onBusinessCustomerChange,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = Color(0xFF4CAF50),
+                            uncheckedThumbColor = Color.White,
+                            uncheckedTrackColor = Color(0xFFBDBDBD)
                         )
                     )
                 }
-                Switch(
-                    checked = isBusinessCustomer,
-                    onCheckedChange = onBusinessCustomerChange,
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
-                        checkedTrackColor = Color(0xFF4CAF50),
-                        uncheckedThumbColor = Color.White,
-                        uncheckedTrackColor = Color(0xFFBDBDBD)
-                    )
-                )
             }
         }
     }
@@ -1068,7 +1140,7 @@ private object Credentials {
     val sampleAddress = Address(
         street = "123 Fake Street",
         city = "Test City",
-        state = "TS",
+        state = "AR",
         postCode = "00000",
         country = "US"
     )

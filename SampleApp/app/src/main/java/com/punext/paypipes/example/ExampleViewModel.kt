@@ -52,6 +52,12 @@ class ExampleViewModel : ViewModel() {
     private val _useAccessToken = MutableStateFlow(false)
     val useAccessToken: StateFlow<Boolean> = _useAccessToken.asStateFlow()
     
+    private val _useCustomerToken = MutableStateFlow(false)
+    val useCustomerToken: StateFlow<Boolean> = _useCustomerToken.asStateFlow()
+    
+    private val _customerToken = MutableStateFlow("")
+    val customerToken: StateFlow<String> = _customerToken.asStateFlow()
+    
     fun updateCurrency(currency: String) {
         _selectedCurrency.value = currency
     }
@@ -102,6 +108,14 @@ class ExampleViewModel : ViewModel() {
     
     fun updateUseAccessToken(use: Boolean) {
         _useAccessToken.value = use
+    }
+    
+    fun updateUseCustomerToken(use: Boolean) {
+        _useCustomerToken.value = use
+    }
+    
+    fun updateCustomerToken(token: String) {
+        _customerToken.value = token
     }
 }
 

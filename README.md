@@ -1,6 +1,6 @@
 # PayPipes Android SDK
 
-[![Version](https://img.shields.io/badge/version-1.0.4-blue.svg)](https://github.com/paypipespublic/punext-pms-sdk-android)
+[![Version](https://img.shields.io/badge/version-1.0.6-blue.svg)](https://github.com/paypipespublic/punext-pms-sdk-android)
 [![Platform](https://img.shields.io/badge/platform-Android%2010%2B-lightgrey.svg)](https://developer.android.com)
 [![Kotlin](https://img.shields.io/badge/kotlin-1.9+-purple.svg)](https://kotlinlang.org)
 ![License](https://img.shields.io/badge/license-Proprietary-red.svg)
@@ -45,7 +45,7 @@ Add the PayPipes SDK dependency to your app's `build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("com.punext:paypipes:1.0.4")
+    implementation("com.punext:paypipes:1.0.6")
 }
 ```
 
@@ -57,7 +57,7 @@ dependencies {
 
 ```kotlin
 dependencies {
-    implementation(files("libs/paypipes-1.0.4.aar"))
+    implementation(files("libs/paypipes-1.0.6.aar"))
 }
 ```
 
@@ -96,12 +96,12 @@ val configuration = Configuration(
 
 ### 2. Create a Transaction Intent
 
+**Option A: With Customer Details** (SDK creates the customer)
 ```kotlin
 import com.punext.paypipes.model.CardTransaction
 import com.punext.paypipes.model.Money
 import com.punext.paypipes.model.CustomerDetails
 
-// CustomerDetails is required
 val customerDetails = CustomerDetails(
     firstName = "John",
     lastName = "Smith",
@@ -120,6 +120,17 @@ val transaction = CardTransaction(
     flowType = FlowType.CARD_PAYMENT,
     billingAddressRequired = false,
     callbackUrl = null // Optional: URL for server callbacks
+)
+```
+
+**Option B: With Customer Token** (customer already tokenized on your backend)
+```kotlin
+val transaction = CardTransaction(
+    orderId = UUID.randomUUID().toString(),
+    customerToken = "your-pre-existing-customer-token",
+    amount = Money(amount = BigDecimal("10.00"), currency = "USD"),
+    flowType = FlowType.CARD_PAYMENT,
+    billingAddressRequired = false
 )
 
 val intent = PayPipesUI.buildCardTransactionIntent(
@@ -202,8 +213,8 @@ PayPipesUI.updateTheme(customTheme)
 The following fields are optional:
 - `address: Address?` - Customer's billing address
 - `phone: Phone?` - Customer's phone number
-- `legalEntity: LegalEntity` - `PRIVATE` (default) or `BUSINESS`
-- `referenceId: String?` - Your unique customer identifier (max 255 chars)
+- `legalEntity: LegalEntity?` - `PRIVATE` or `BUSINESS` (defaults to `PRIVATE` behavior if `null`)
+- `referenceId: String?` - Your unique customer identifier (max 64 chars)
 
 ```kotlin
 import com.punext.paypipes.model.CustomerDetails
@@ -214,7 +225,10 @@ import com.punext.paypipes.model.Phone
 val minimalCustomerDetails = CustomerDetails(
     firstName = "John",
     lastName = "Smith",
-    email = "john.smith@example.com"
+    email = "john.smith@example.com",
+    address = null,
+    phone = null,
+    legalEntity = null // Defaults to PRIVATE behavior internally
 )
 
 // Complete CustomerDetails with all fields
@@ -272,11 +286,14 @@ Represents a payment transaction.
 #### Properties
 
 - `orderId: String` - Unique order identifier
-- `customerDetails: CustomerDetails` - **Required** customer information
+- `customerDetails: CustomerDetails?` - Customer information (required if `customerToken` is not provided)
+- `customerToken: String?` - Pre-existing customer token (required if `customerDetails` is not provided)
 - `amount: Money` - The transaction amount
 - `flowType: FlowType` - Transaction type (`CARD_PAYMENT` or `CARD_STORAGE`)
 - `billingAddressRequired: Boolean` - Whether billing address is required
 - `callbackUrl: String?` - Optional URL for server callbacks
+
+> **Note:** Either `customerDetails` OR `customerToken` must be provided (not both).
 
 ### CustomerDetails
 
@@ -292,8 +309,8 @@ Represents customer information for a transaction.
 
 - `address: Address?` - Customer's billing address
 - `phone: Phone?` - Customer's phone number
-- `legalEntity: LegalEntity` - `PRIVATE` (default) or `BUSINESS`
-- `referenceId: String?` - Your unique customer identifier (max 255 chars)
+- `legalEntity: LegalEntity?` - `PRIVATE` or `BUSINESS` (defaults to `PRIVATE` behavior if `null`)
+- `referenceId: String?` - Your unique customer identifier (max 64 chars)
 
 ### Configuration
 
